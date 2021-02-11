@@ -14,42 +14,73 @@ namespace TAM
 
     [Command(Name = "TAM", Description = "A list of commands to help make a TAM's life easier"),
         Subcommand(typeof(ConfigManager))]
-        
+
     [HelpOption("-?|-h|--help")]
-    public class TAM
+    public class TAM : TAMapp
     {
-        public static void Main(string[] args) {
 
-
-            SetupSimpleConfiguration();
-
-            // Create service provider
-            // Print connection string to demonstrate configuration object is populated
-            Console.WriteLine(Config.GetConnectionString("DataConnection"));
-
-
-            //console.WriteLine("You must specify at a subcommand.");
-            CommandLineApplication.Execute<TAM>(args);
-                }
-
-        private static void SetupSimpleConfiguration()
+        override public int RunCommand()
         {
-            Config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory())
-                .AddJsonFile("app.json")
-                .Build();
+            console.WriteLine();
+            console.Error.WriteLine("You must specify an action. See --help for more details.");
+            console.WriteLine(configuration.GetConnectionString("SnowFlake"));
+            return 0;
         }
-        public static IConfigurationRoot Config { get; private set; }
-
-        private int OnExecute(CommandLineApplication app, IConsole console)
-        {
-            console.WriteLine("You must specify at a subcommand.");
-            app.ShowHelp();
-            return 1;
-        }
-
 
     }
 
+    public class TAMapp
+    {
+        public static IConfigurationRoot configuration;
+        public static void Main(string[] args)
+        {
+
+
+            ServiceCollection serviceCollection = new ServiceCollection();
+            ConfigureServices(serviceCollection);
+
+            // Create service provider
+            IServiceProvider serviceProvider = serviceCollection.BuildServiceProvider();
+
+            // Print connection string to demonstrate configuration object is populated
+
+            var app = new CommandLineApplication<TAM>();
+            app.Conventions
+                .UseDefaultConventions()
+                .UseConstructorInjection(serviceProvider);
+            app.Execute(args);
+        }
+        private CommandLineApplication app;
+        protected IConsole console;
+        private static void ConfigureServices(IServiceCollection serviceCollection)
+        {
+            // Add logging
+            // Build configuration
+            configuration = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetParent(AppContext.BaseDirectory).FullName)
+                .AddJsonFile("app.json", false)
+                .Build();
+
+            // Add access to generic IConfigurationRoot
+            serviceCollection.AddSingleton<IConfigurationRoot>(configuration);
+
+            // Add app
+            serviceCollection.AddTransient<TAM>();
+        }
+        public int OnExecute(CommandLineApplication _app, IConsole _console)
+        {
+            app = _app;
+            console = _console;
+            return RunCommand();
+        }
+
+        virtual public int RunCommand()
+        {
+            console.WriteLine();
+            console.Error.WriteLine("You must specify an action. See --help for more details.");
+            return 0;
+        }
+       
+    }
 }
     
